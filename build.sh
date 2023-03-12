@@ -36,7 +36,7 @@ function showHelpAndExit {
         echo -e "${CLR_BLD_BLU}  -c, --clean           Wipe the tree before building${CLR_RST}"
         echo -e "${CLR_BLD_BLU}  -i, --installclean    Dirty build - Use 'installclean'${CLR_RST}"
         echo -e "${CLR_BLD_BLU}  -r, --repo-sync       Sync before building${CLR_RST}"
-        echo -e "${CLR_BLD_BLU}  -v, --variant         AOSPA variant - Can be dev, alpha, beta or release${CLR_RST}"
+        echo -e "${CLR_BLD_BLU}  -v, --variant         AOSPA variant - Can be alpha, beta or release${CLR_RST}"
         echo -e "${CLR_BLD_BLU}  -t, --build-type      Specify build type${CLR_RST}"
         echo -e "${CLR_BLD_BLU}  -j, --jobs            Specify jobs/threads to use${CLR_RST}"
         echo -e "${CLR_BLD_BLU}  -m, --module          Build a specific module${CLR_RST}"
@@ -45,12 +45,13 @@ function showHelpAndExit {
         echo -e "${CLR_BLD_BLU}  -b, --backup-unsigned Store a copy of unsignied package along with signed${CLR_RST}"
         echo -e "${CLR_BLD_BLU}  -d, --delta           Generate a delta ota from the specified target_files zip${CLR_RST}"
         echo -e "${CLR_BLD_BLU}  -z, --imgzip          Generate fastboot flashable image zip from signed target_files${CLR_RST}"
+        echo -e "${CLR_BLD_BLU}  -n, --version         Specify build minor version (number)${CLR_RST}"
         exit 1
 }
 
 # Setup getopt.
-long_opts="help,clean,installclean,repo-sync,variant:,build-type:,jobs:,module:,sign-keys:,pwfile:,backup-unsigned,delta:,imgzip"
-getopt_cmd=$(getopt -o hcirv:t:j:m:s:p:bd:z --long "$long_opts" \
+long_opts="help,clean,installclean,repo-sync,variant:,build-type:,jobs:,module:,sign-keys:,pwfile:,backup-unsigned,delta:,imgzip,version:"
+getopt_cmd=$(getopt -o hcirv:t:j:m:s:p:bd:zn: --long "$long_opts" \
             -n $(basename $0) -- "$@") || \
             { echo -e "${CLR_BLD_RED}\nError: Getopt failed. Extra args\n${CLR_RST}"; showHelpAndExit; exit 1;}
 
@@ -65,12 +66,13 @@ while true; do
         -v|--variant|v|variant) AOSPA_VARIANT="$2"; shift;;
         -t|--build-type|t|build-type) BUILD_TYPE="$2"; shift;;
         -j|--jobs|j|jobs) JOBS="$2"; shift;;
-        -m|--module|m|module) MODULE="$2"; shift;;
+        -m|--module|m|module) MODULES+=("$2"); echo $2; shift;;
         -s|--sign-keys|s|sign-keys) KEY_MAPPINGS="$2"; shift;;
         -p|--pwfile|p|pwfile) PWFILE="$2"; shift;;
         -b|--backup-unsigned|b|backup-unsigned) FLAG_BACKUP_UNSIGNED=y;;
         -d|--delta|d|delta) DELTA_TARGET_FILES="$2"; shift;;
         -z|--imgzip|img|imgzip) FLAG_IMG_ZIP=y;;
+        -n|--version|n|version) AOSPA_USER_VERSION="$2"; shift;;
         --) shift; break;;
     esac
     shift
@@ -105,12 +107,23 @@ if [ $AOSPA_VARIANT ]; then
     AOSPA_VARIANT=`echo $AOSPA_VARIANT |  tr "[:upper:]" "[:lower:]"`
     if [ "${AOSPA_VARIANT}" = "release" ]; then
         export AOSPA_BUILDTYPE=RELEASE
-    elif [ "${AOSPA_VARIANT}" = "alpha" ]; then
-        export AOSPA_BUILDTYPE=ALPHA
     elif [ "${AOSPA_VARIANT}" = "beta" ]; then
         export AOSPA_BUILDTYPE=BETA
+    elif [ "${AOSPA_VARIANT}" = "alpha" ]; then
+        export AOSPA_BUILDTYPE=ALPHA
     else
-        echo -e "${CLR_BLD_RED} Unknown AOSPA variant - use alpha, beta or release${CLR_RST}"
+        echo -e "${CLR_BLD_RED} Unknown AOSPA variant - use beta or release${CLR_RST}"
+        exit 1
+    fi
+fi
+
+# Setup AOSPA version if specified
+if [ $AOSPA_USER_VERSION ]; then
+    # Check is it a number
+    if [ ! -z "${AOSPA_USER_VERSION##*[!0-9]*}" ]; then
+        export AOSPA_BUILDVERSION=${AOSPA_USER_VERSION}
+    else
+        echo -e "${CLR_BLD_RED} Invalid AOSPA minor version - use any non-negative integer${CLR_RST}"
         exit 1
     fi
 fi
@@ -124,7 +137,7 @@ echo -e ""
 # Use the thread count specified by user
 CMD=""
 if [ $JOBS ]; then
-  CMD+=" -j$JOBS"
+  CMD+="-j$JOBS"
 fi
 
 # Pick the default thread count (allow overrides from the environment)
@@ -137,21 +150,18 @@ if [ -z "$JOBS" ]; then
 fi
 
 # Grab the build version
-AOSPA_DISPLAY_VERSION="$(cat $DIR_ROOT/vendor/aospa/target/product/version.mk | grep 'AOSPA_MAJOR_VERSION := *' | sed 's/.*= //') \
-$(cat $DIR_ROOT/vendor/aospa/target/product/version.mk | grep 'AOSPA_MINOR_VERSION := *' | sed 's/.*= //')"
+AOSPA_DISPLAY_VERSION="$(cat $DIR_ROOT/vendor/aospa/target/product/version.mk | grep 'AOSPA_MAJOR_VERSION := *' | sed 's/.*= //') "
+if [ $AOSPA_BUILDVERSION ]; then
+    AOSPA_DISPLAY_VERSION+="$AOSPA_BUILDVERSION"
+else
+    AOSPA_DISPLAY_VERSION+="$(cat $DIR_ROOT/vendor/aospa/target/product/version.mk | grep 'AOSPA_MINOR_VERSION := *' | tail -n 1 | sed 's/.*= //')"
+fi
 
 # Prep for a clean build, if requested so
 if [ "$FLAG_CLEAN_BUILD" = 'y' ]; then
         echo -e "${CLR_BLD_BLU}Cleaning output files left from old builds${CLR_RST}"
         echo -e ""
-        m clobber"$CMD"
-fi
-
-# Prep for a installclean build, if requested so
-if [ "$FLAG_INSTALLCLEAN_BUILD" = 'y' ]; then
-        echo -e "${CLR_BLD_BLU}Cleaning compiled image files left from old builds${CLR_RST}"
-        echo -e ""
-        m installclean"$CMD"
+        m clobber "$CMD"
 fi
 
 # Sync up, if asked to
@@ -172,9 +182,17 @@ echo -e ""
 # Lunch-time!
 echo -e "${CLR_BLD_BLU}Lunching $DEVICE${CLR_RST} ${CLR_CYA}(Including dependencies sync)${CLR_RST}"
 echo -e ""
-AOSPA_VERSION=$(lunch "aospa_$DEVICE-$BUILD_TYPE" | grep 'AOSPA_VERSION=*' | sed 's/.*=//')
 lunch "aospa_$DEVICE-$BUILD_TYPE"
+AOSPA_VERSION="$(get_build_var AOSPA_VERSION)"
+checkExit
 echo -e ""
+
+# Perform installclean, if requested so
+if [ "$FLAG_INSTALLCLEAN_BUILD" = 'y' ]; then
+	echo -e "${CLR_BLD_BLU}Cleaning compiled image files left from old builds${CLR_RST}"
+	echo -e ""
+	m installclean "$CMD"
+fi
 
 # Build away!
 echo -e "${CLR_BLD_BLU}Starting compilation${CLR_RST}"
@@ -187,9 +205,9 @@ else
     export FILE_NAME_TAG=$BUILD_NUMBER
 fi
 
-# Build a specific module
-if [ "${MODULE}" ]; then
-    m $MODULE"$CMD"
+# Build a specific module(s)
+if [ "${MODULES}" ]; then
+    m ${MODULES[@]} "$CMD"
     checkExit
 
 # Build signed rom package if specified
@@ -199,14 +217,14 @@ elif [ "${KEY_MAPPINGS}" ]; then
         export ANDROID_PW_FILE=$PWFILE
     fi
 
-    # Make package for distribution
-    m dist"$CMD"
+    # Make target-files-package
+    m otatools target-files-package "$CMD"
 
     checkExit
 
     echo -e "${CLR_BLD_BLU}Signing target files apks${CLR_RST}"
     sign_target_files_apks -o -d $KEY_MAPPINGS \
-        out/dist/aospa_$DEVICE-target_files-$FILE_NAME_TAG.zip \
+        "$OUT"/obj/PACKAGING/target_files_intermediates/aospa_$DEVICE-target_files-$FILE_NAME_TAG.zip \
         aospa-$AOSPA_VERSION-signed-target_files-$FILE_NAME_TAG.zip
 
     checkExit
@@ -233,26 +251,39 @@ elif [ "${KEY_MAPPINGS}" ]; then
     fi
 
     if [ "$FLAG_IMG_ZIP" = 'y' ]; then
+        echo -e "${CLR_BLD_BLU}Generating signed fastboot package${CLR_RST}"
         img_from_target_files \
             aospa-$AOSPA_VERSION-signed-target_files-$FILE_NAME_TAG.zip \
-            aospa-$AOSPA_VERSION-signed-image.zip
+            aospa-$AOSPA_VERSION-image.zip
         checkExit
     fi
 # Build rom package
 elif [ "$FLAG_IMG_ZIP" = 'y' ]; then
-    m updatepackage otapackage"$CMD"
+    m otatools target-files-package "$CMD"
 
     checkExit
 
-    cp -f $OUT/aospa_$DEVICE-ota-$FILE_NAME_TAG.zip $OUT/aospa-$AOSPA_VERSION.zip
-    cp -f $OUT/aospa_$DEVICE-img-$FILE_NAME_TAG.zip $OUT/aospa-$AOSPA_VERSION-image.zip
+    echo -e "${CLR_BLD_BLU}Generating install package${CLR_RST}"
+    ota_from_target_files \
+        "$OUT"/obj/PACKAGING/target_files_intermediates/aospa_$DEVICE-target_files-$FILE_NAME_TAG.zip \
+        aospa-$AOSPA_VERSION.zip
+
+    checkExit
+
+    echo -e "${CLR_BLD_BLU}Generating fastboot package${CLR_RST}"
+    img_from_target_files \
+        "$OUT"/obj/PACKAGING/target_files_intermediates/aospa_$DEVICE-target_files-$FILE_NAME_TAG.zip \
+        aospa-$AOSPA_VERSION-image.zip
+
+    checkExit
 
 else
-    m otapackage"$CMD"
+    m otapackage "$CMD"
 
     checkExit
 
     cp -f $OUT/aospa_$DEVICE-ota-$FILE_NAME_TAG.zip $OUT/aospa-$AOSPA_VERSION.zip
+    echo "Package Complete: $OUT/aospa-$AOSPA_VERSION.zip"
 fi
 echo -e ""
 

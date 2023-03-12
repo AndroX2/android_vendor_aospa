@@ -17,6 +17,7 @@ $(foreach v,$(EXPORT_TO_SOONG),$(eval $(call addVar,$(v))))
 
 SOONG_CONFIG_NAMESPACES += aospaGlobalVars
 SOONG_CONFIG_aospaGlobalVars += \
+    needs_camera_boottime \
     target_init_vendor_lib \
     target_ld_shim_libs \
     target_process_sdk_version_override \
@@ -27,6 +28,7 @@ TARGET_INIT_VENDOR_LIB ?= vendor_init
 TARGET_SURFACEFLINGER_UDFPS_LIB ?= surfaceflinger_udfps_lib
 
 # Soong value variables
+SOONG_CONFIG_aospaGlobalVars_needs_camera_boottime := $(TARGET_CAMERA_BOOTTIME_TIMESTAMP)
 SOONG_CONFIG_aospaGlobalVars_target_init_vendor_lib := $(TARGET_INIT_VENDOR_LIB)
 SOONG_CONFIG_aospaGlobalVars_target_ld_shim_libs := $(subst $(space),:,$(TARGET_LD_SHIM_LIBS))
 SOONG_CONFIG_aospaGlobalVars_target_process_sdk_version_override := $(TARGET_PROCESS_SDK_VERSION_OVERRIDE)
@@ -60,7 +62,8 @@ GESTURE_SOONG_VARS := \
     TARGET_ONE_FINGER_SWIPE_LEFT_NODE \
     TARGET_TWO_FINGER_SWIPE_NODE \
     TARGET_DRAW_S_NODE \
-    TARGET_SINGLE_TAP_TO_WAKE_NODE
+    TARGET_SINGLE_TAP_TO_WAKE_NODE \
+    TARGET_POWER_FEATURE_EXT_LIB
 
 $(foreach v,$(GESTURE_SOONG_VARS),$(eval $(call add-gesturevar-if-exist,$(v))))
 

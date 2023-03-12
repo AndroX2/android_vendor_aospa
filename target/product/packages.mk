@@ -1,4 +1,4 @@
-# Copyright (C) 2016-2021 Paranoid Android
+# Copyright (C) 2016-2022 Paranoid Android
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,6 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Abstruct
+PRODUCT_PACKAGES += \
+    Abstruct
+
+# Camera
+PRODUCT_PACKAGES += \
+    GoogleCameraGo
+
+# curl
+PRODUCT_PACKAGES += \
+    curl
 
 # HIDL
 PRODUCT_PACKAGES += \
@@ -25,8 +37,15 @@ PRODUCT_PACKAGES += \
 
 # Paranoid Packages
 PRODUCT_PACKAGES += \
-    ParanoidPapers \
-    ParanoidQuickStep
+    ParanoidPapers
+
+# Paranoid Packages (OTA)
+ifneq ($(filter RELEASE BETA,$(AOSPA_BUILDTYPE)),)
+PRODUCT_PACKAGES += ParanoidHub
+endif
+
+PRODUCT_PACKAGES += \
+    init.aospa-hub.rc
 
 # Theme Picker
 PRODUCT_PACKAGES += \
@@ -36,9 +55,48 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     vendor.aospa.power-service
 
+# Repainter (kdrag0n)
+PRODUCT_PACKAGES += \
+    RepainterServicePriv
+
 # QTI VNDK Framework Detect
 PRODUCT_PACKAGES += \
     libvndfwk_detect_jni.qti \
     libqti_vndfwk_detect \
+    libqti_vndfwk_detect_system \
+    libqti_vndfwk_detect_vendor \
+    libvndfwk_detect_jni.qti_system \
+    libvndfwk_detect_jni.qti_vendor \
     libvndfwk_detect_jni.qti.vendor \
     libqti_vndfwk_detect.vendor
+
+# Telephony - AOSP
+PRODUCT_PACKAGES += \
+    Stk
+
+# Telephony - CLO
+PRODUCT_PACKAGES += \
+    extphonelib \
+    extphonelib-product \
+    extphonelib.xml \
+    extphonelib_product.xml \
+    ims-ext-common \
+    ims_ext_common.xml \
+    tcmiface \
+    telephony-ext \
+    qti-telephony-hidl-wrapper \
+    qti-telephony-hidl-wrapper-prd \
+    qti_telephony_hidl_wrapper.xml \
+    qti_telephony_hidl_wrapper_prd.xml \
+    qti-telephony-utils \
+    qti-telephony-utils-prd \
+    qti_telephony_utils.xml \
+    qti_telephony_utils_prd.xml
+
+PRODUCT_BOOT_JARS += \
+    tcmiface \
+    telephony-ext
+
+# WiFi
+PRODUCT_PACKAGES += \
+    libwpa_client

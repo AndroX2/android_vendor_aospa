@@ -37,9 +37,16 @@
     },
     {
         "remote":       "aospa",
-        "repository":   "AOSPA/android_kernel_oneplus_sm8350",
+        "repository":   "arter97/android_kernel_oneplus_sm8350",
         "target_path":  "kernel/msm-5.4",
         "revision":     "sapphire"
+    },
+    {
+        "remote":       "blobs-gitlab",
+        "repository":   "android_prebuilts_clang-standalone",
+        "target_path":  "prebuilts/clang-standalone",
+        "revision":     "14",
+        "clone-depth":  "1"
     },
     {
         "remote":       "blobs",

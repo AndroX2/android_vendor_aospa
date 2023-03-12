@@ -183,7 +183,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--force', action='store_true', help='force cherry pick even if change is closed')
     parser.add_argument('-p', '--pull', action='store_true', help='execute pull instead of cherry-pick')
     parser.add_argument('-P', '--path', help='use the specified path for the change')
-    parser.add_argument('-t', '--topic', help='pick all commits from a specified topic')
+    parser.add_argument('-t', '--topic', nargs='*', help='pick all commits from the specified topics')
     parser.add_argument('-Q', '--query', help='pick all commits using the specified query')
     parser.add_argument('-g', '--gerrit', default=default_gerrit, help='Gerrit Instance to use. Form proto://[user@]host[:port]')
     parser.add_argument('-e', '--exclude', nargs=1, help='exclude a list of commit numbers separated by a ,')
@@ -282,9 +282,21 @@ if __name__ == '__main__':
         else:
             return cmp(review_a['number'], review_b['number'])
 
+    if not args.force:
+        if args.gerrit[0:3] == 'ssh':
+            query="status:open topic:{}"
+        else:
+            query="status:open+topic:{}"
+    else:
+        query="topic:{}"
     if args.topic:
-        reviews = fetch_query(args.gerrit, 'topic:{0}'.format(args.topic))
-        change_numbers = [str(r['number']) for r in sorted(reviews, key=cmp_to_key(cmp_reviews))]
+        for t in args.topic:
+            # Store current topic to process for change_numbers
+            topic = fetch_query(args.gerrit, query.format(t))
+            # Append topic to reviews, for later reference
+            reviews += topic
+            # Cycle through the current topic to get the change numbers
+            change_numbers += sorted([str(r['number']) for r in topic], key=int)
     if args.query:
         reviews = fetch_query(args.gerrit, args.query)
         change_numbers = [str(r['number']) for r in sorted(reviews, key=cmp_to_key(cmp_reviews))]
@@ -365,6 +377,8 @@ if __name__ == '__main__':
 
         if item['project'] in project_name_to_data and item['branch'] in project_name_to_data[item['project']]:
             project_path = project_name_to_data[item['project']][item['branch']]
+        elif 'https://android-review.googlesource.com' in args.gerrit:
+            project_path = item['project'].replace("platform/", "")
         elif args.path:
             project_path = args.path
         elif item['project'] in project_name_to_data and len(project_name_to_data[item['project']]) == 1:
@@ -413,12 +427,14 @@ if __name__ == '__main__':
 
         # Print out some useful info
         if not args.quiet:
-            print(u'--> Subject:       "{0}"'.format(item['subject']))
-            print('--> Project path:  {0}'.format(project_path))
-            print('--> Change number: {0} (Patch Set {1})'.format(item['id'], item['patchset']))
+            print(u'--> Subject       : "{0}"'.format(item['subject']))
+            print('--> Project path  : {0}'.format(project_path))
+            print('--> Change number : {0} (Patch Set {1})'.format(item['id'], item['patchset']))
 
         if 'anonymous http' in item['fetch']:
             method = 'anonymous http'
+        elif 'https://android-review.googlesource.com' in args.gerrit:
+            method = 'http'
         else:
             method = 'ssh'
 
@@ -434,7 +450,7 @@ if __name__ == '__main__':
             if args.quiet:
                 cmd.append('--quiet')
             else:
-                print(cmd)
+                print('--> Command       : "{0}"'.format(' '.join(cmd)))
             result = subprocess.call([' '.join(cmd)], cwd=project_path, shell=True)
             FETCH_HEAD = '{0}/.git/FETCH_HEAD'.format(project_path)
             if result != 0 and os.stat(FETCH_HEAD).st_size != 0:
@@ -456,7 +472,7 @@ if __name__ == '__main__':
             if args.quiet:
                 cmd.append('--quiet')
             else:
-                print(cmd)
+                print('--> Command       : "{0}"'.format(' '.join(cmd)))
             result = subprocess.call([' '.join(cmd)], cwd=project_path, shell=True)
             if result != 0:
                 print('ERROR: git command failed')

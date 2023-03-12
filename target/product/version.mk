@@ -29,21 +29,27 @@ AOSPA_MAJOR_VERSION := sapphire
 # The version code is the upgradable portion during the cycle of
 # every major Android release. Each version code upgrade indicates
 # our own major release during each lifecycle.
-AOSPA_MINOR_VERSION := 1
+ifdef AOSPA_BUILDVERSION
+    AOSPA_MINOR_VERSION := $(AOSPA_BUILDVERSION)
+else
+    AOSPA_MINOR_VERSION := 1
+endif
 
 # Build Variants
 #
-# Alpha: Development / Test
+# Alpha: Development / Test releases
 # Beta: Public releases with CI
 # Release: Final Product | No Tagging
-ifndef AOSPA_BUILDTYPE
-  AOSPA_BUILD_VARIANT := alpha
-else
-  ifeq ($(AOSPA_BUILDTYPE), BETA)
+ifdef AOSPA_BUILDTYPE
+  ifeq ($(AOSPA_BUILDTYPE), ALPHA)
+      AOSPA_BUILD_VARIANT := alpha
+  else ifeq ($(AOSPA_BUILDTYPE), BETA)
       AOSPA_BUILD_VARIANT := beta
   else ifeq ($(AOSPA_BUILDTYPE), RELEASE)
       AOSPA_BUILD_VARIANT := release
   endif
+else
+  AOSPA_BUILD_VARIANT := unofficial
 endif
 
 # Build Date

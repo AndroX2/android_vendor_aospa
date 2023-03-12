@@ -15,6 +15,14 @@
 # Overlays
 PRODUCT_PACKAGES += \
     AOSPAFrameworksOverlay \
+    AOSPAImmersiveNavigationOverlay \
+    AOSPASettingsOverlay \
     AOSPASettingsProviderOverlay \
     AOSPASystemUIOverlay \
+    FontGoogleSansLatoOverlay \
+    FontHarmonySansOverlay \
+    FontInterOverlay \
+    FontManropeOverlay \
+    FontRobotoOverlay \
+    FontUrbanistOverlay \
     ParanoidLauncherOverlay
